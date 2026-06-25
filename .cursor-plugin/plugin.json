@@ -1,0 +1,14 @@
+{
+  "name": "greennode-agentbase",
+  "version": "1.0.0",
+  "description": "Full GreenNode AgentBase lifecycle: scaffold → configure → deploy → monitor → teardown. 10 skills including /agentbase-wizard, /agentbase-deploy, /agentbase-monitor.",
+  "author": {
+    "name": "GreenNode",
+    "url": "https://greennode.ai"
+  },
+  "homepage": "https://github.com/vngcloud/greennode-agentbase-skills",
+  "repository": "https://github.com/vngcloud/greennode-agentbase-skills",
+  "license": "MIT",
+  "keywords": ["agentbase", "greennode", "agent", "deploy", "vngcloud"],
+  "skills": "./skills/"
+}
