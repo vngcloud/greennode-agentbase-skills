@@ -11,13 +11,13 @@ Drop them into **Claude Code**, **Cursor**, **OpenAI Codex**, or any other SKILL
 ### Claude Code
 
 ```bash
-claude plugin marketplace add github:vngcloud/greennode-agentbase-skills
+claude plugin marketplace add vngcloud/greennode-agentbase-skills
 ```
 
 Then inside Claude Code:
 
 ```
-/plugin install greennode-agentbase
+/plugin install greennode-agentbase@greennode-agentbase
 ```
 
 **Team distribution** — add to your project's `.claude/settings.json` so teammates are prompted to install automatically:
