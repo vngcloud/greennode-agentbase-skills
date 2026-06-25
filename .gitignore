@@ -1,0 +1,7 @@
+# Superpowers internal — specs, plans, SDD scratch
+docs/superpowers/
+.superpowers/
+
+# Local secrets
+.env
+.greennode.json
