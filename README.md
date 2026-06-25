@@ -60,7 +60,6 @@ cp -r greennode-agentbase-skills/skills/* <your-tool-skills-dir>/
 | Codex CLI | `config.toml` plugin entry | Yes |
 | Cursor | Team marketplace UI | Yes |
 | Windsurf | Manual copy of `skills/*/SKILL.md` | No (markdown only) |
-| GitHub Copilot | Not supported | No |
 
 ---
 
