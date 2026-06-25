@@ -59,7 +59,7 @@ cp -r greennode-agentbase-skills/skills/* <your-tool-skills-dir>/
 | Claude Code | `/plugin install` via marketplace | Yes |
 | Codex CLI | `config.toml` plugin entry | Yes |
 | Cursor | Team marketplace UI | Yes |
-| Windsurf | Manual copy of `skills/*/SKILL.md` | No (markdown only) |
+
 
 ---
 
