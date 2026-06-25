@@ -1,0 +1,16 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace-v1.schema.json",
+  "name": "greennode-agentbase",
+  "description": "GreenNode AgentBase plugin marketplace",
+  "owner": { "name": "GreenNode" },
+  "plugins": [
+    {
+      "name": "greennode-agentbase",
+      "source": "./",
+      "description": "Full GreenNode AgentBase lifecycle skills: scaffold, configure, deploy, monitor, teardown.",
+      "version": "1.0.0",
+      "keywords": ["agentbase", "greennode", "agent", "deploy", "vngcloud"],
+      "category": "deployment"
+    }
+  ]
+}
