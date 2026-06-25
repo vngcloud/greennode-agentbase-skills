@@ -2,7 +2,7 @@
 
 A bundle of [SKILL.md](https://www.mintlify.com/blog/skill-md)-compatible skills that drive the full **GreenNode AgentBase** lifecycle — scaffold → configure → code → test → deploy → monitor → teardown — from inside your AI coding tool.
 
-Drop them into **Claude Code**, **Cursor**, **OpenAI Codex**, or any other SKILL.md-aware client and you get slash commands like `/agentbase-wizard`, `/agentbase-deploy`, `/agentbase-monitor`. The skills are plain Markdown + shell — no client-specific runtime — so the **full lifecycle works in every tool that can read SKILL.md and run a shell**.
+Drop them into **Claude Code**, **OpenAI Codex**, or any other SKILL.md-aware client and you get slash commands like `/agentbase-wizard`, `/agentbase-deploy`, `/agentbase-monitor`. The skills are plain Markdown + shell — no client-specific runtime — so the **full lifecycle works in every tool that can read SKILL.md and run a shell**.
 
 ---
 
@@ -34,40 +34,22 @@ Then inside Claude Code:
 
 ### Codex CLI
 
-Add to `~/.codex/config.toml`:
-
-```toml
-[plugins]
-greennode-agentbase = { source = "github:vngcloud/greennode-agentbase-skills" }
+```bash
+codex plugin marketplace add vngcloud/greennode-agentbase-skills
 ```
 
-### Cursor
-
-**Cursor CLI** (any plan) — inside a Cursor CLI session:
-
-```
-/plugin
-```
-
-Then paste the repo URL: `https://github.com/vngcloud/greennode-agentbase-skills.git`
-
-**Cursor IDE (Team/Enterprise)** — Dashboard → Settings → Plugins → Add Marketplace → Import from GitHub: `vngcloud/greennode-agentbase-skills`
-
-### Manual fallback (any tool)
+Then install the plugin:
 
 ```bash
-git clone https://github.com/vngcloud/greennode-agentbase-skills.git
-cp -r greennode-agentbase-skills/skills/* <your-tool-skills-dir>/
+codex plugin add greennode-agentbase@greennode-agentbase
 ```
 
 ### Compatibility
 
 | Tool | Install method | Shell scripts supported |
 |---|---|---|
-| Claude Code | `/plugin install` via marketplace | Yes |
-| Codex CLI | `config.toml` plugin entry | Yes |
-| Cursor CLI | `/plugin` + Git URL | Yes |
-| Cursor IDE | Team/Enterprise marketplace | Yes |
+| Claude Code | `claude plugin marketplace add` | Yes |
+| Codex CLI | `codex plugin marketplace add` | Yes |
 
 
 ---
@@ -192,8 +174,8 @@ Or, first time, just:
 ```
 greennode-agentbase-skills/
 ├── .claude-plugin/             # Claude Code plugin + marketplace manifests
-├── .codex-plugin/              # Codex CLI plugin manifest
-├── .cursor-plugin/             # Cursor plugin manifest
+├── .codex-plugin/              # Codex app plugin manifest
+├── .agents/plugins/            # Codex CLI marketplace manifest
 ├── skills/                     # <-- the skills you install
 │   ├── agentbase/              # platform reference
 │   ├── agentbase-wizard/       # guided full-lifecycle wizard

@@ -1,0 +1,20 @@
+{
+  "name": "greennode-agentbase",
+  "interface": {
+    "displayName": "GreenNode AgentBase"
+  },
+  "plugins": [
+    {
+      "name": "greennode-agentbase",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Deployment"
+    }
+  ]
+}
