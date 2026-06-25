@@ -43,7 +43,15 @@ greennode-agentbase = { source = "github:vngcloud/greennode-agentbase-skills" }
 
 ### Cursor
 
-Team marketplace → import repo: `vngcloud/greennode-agentbase-skills`
+**Cursor CLI** (any plan) — inside a Cursor CLI session:
+
+```
+/plugin
+```
+
+Then paste the repo URL: `https://github.com/vngcloud/greennode-agentbase-skills.git`
+
+**Cursor IDE (Team/Enterprise)** — Dashboard → Settings → Plugins → Add Marketplace → Import from GitHub: `vngcloud/greennode-agentbase-skills`
 
 ### Manual fallback (any tool)
 
@@ -58,7 +66,8 @@ cp -r greennode-agentbase-skills/skills/* <your-tool-skills-dir>/
 |---|---|---|
 | Claude Code | `/plugin install` via marketplace | Yes |
 | Codex CLI | `config.toml` plugin entry | Yes |
-| Cursor | Team marketplace UI | Yes |
+| Cursor CLI | `/plugin` + Git URL | Yes |
+| Cursor IDE | Team/Enterprise marketplace | Yes |
 
 
 ---
