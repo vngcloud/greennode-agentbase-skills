@@ -6,90 +6,61 @@ Drop them into **Claude Code**, **Cursor**, **OpenAI Codex**, or any other SKILL
 
 ---
 
-## TL;DR — Install in 30 Seconds
+## Install in 30 Seconds
+
+### Claude Code
+
+```bash
+claude plugin marketplace add github:vngcloud/greennode-agentbase-skills
+```
+
+Then inside Claude Code:
+
+```
+/plugin install greennode-agentbase
+```
+
+**Team distribution** — add to your project's `.claude/settings.json` so teammates are prompted to install automatically:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "greennode-agentbase": {
+      "source": { "source": "github", "repo": "vngcloud/greennode-agentbase-skills" }
+    }
+  }
+}
+```
+
+### Codex CLI
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[plugins]
+greennode-agentbase = { source = "github:vngcloud/greennode-agentbase-skills" }
+```
+
+### Cursor
+
+Team marketplace → import repo: `vngcloud/greennode-agentbase-skills`
+
+### Manual fallback (any tool)
 
 ```bash
 git clone https://github.com/vngcloud/greennode-agentbase-skills.git
-
-# Pick the install target for your tool (see table below)
-#   Claude Code  → ~/.claude/skills        or  <project>/.claude/skills
-#   Cursor       → ~/.cursor/skills        or  <project>/.cursor/skills
-#   Codex        → ~/.agents/skills        or  <project>/.agents/skills
-
-mkdir -p ~/.claude/skills
-cp -r greennode-agentbase-skills/.claude/skills/* ~/.claude/skills/
+cp -r greennode-agentbase-skills/skills/* <your-tool-skills-dir>/
 ```
 
-Then restart your tool and type `/agentbase-wizard` (or just say *"build me a Telegram bot"*).
+### Compatibility
 
----
-
-## Install Per Tool
-
-All skills live under `.claude/skills/`. They are plain folders with a `SKILL.md` file inside — no build step. Each client auto-discovers them from a known directory.
-
-### 1. Claude Code
-
-The native home for these skills.
-
-```bash
-# Global (recommended — available in every project)
-mkdir -p ~/.claude/skills
-cp -r greennode-agentbase-skills/.claude/skills/* ~/.claude/skills/
-
-# OR project-scoped
-mkdir -p <your-project>/.claude/skills
-cp -r greennode-agentbase-skills/.claude/skills/* <your-project>/.claude/skills/
-```
-
-Launch and use:
-
-```bash
-cd <your-project> && claude
-> /agentbase-wizard          # slash command
-> "deploy my agent"           # or just describe intent — Claude picks the skill
-```
-
-> **Tip:** `claude` will auto-load every `SKILL.md` it finds. To verify, run `/help` and look for the skills section.
-
-### 2. Cursor
-
-Cursor's skills support and exact path have evolved across releases — **check your version's docs** for the correct skills directory before installing. Typical layout:
-
-```bash
-mkdir -p ~/.cursor/skills
-cp -r greennode-agentbase-skills/.claude/skills/* ~/.cursor/skills/
-# or project-scoped: <your-project>/.cursor/skills/
-```
-
-Open Cursor → Agent chat → type `/` to search skills. Agent mode runs bash / curl, so deploy / monitor / teardown work end-to-end.
-
-### 3. OpenAI Codex
-
-```bash
-export OPENAI_API_KEY="..."
-cd <your-project> && codex
-```
-
-Codex CLI reads SKILL.md-style files; **the exact discovery path depends on your Codex version** (commonly `~/.agents/skills/` or `<project>/.agents/skills/` — check your version's docs). Once discovered, the CLI executes shell + HTTP calls, so the full lifecycle works.
-
-### 4. Other SKILL.md-compatible Clients
-
-Any client that (a) reads SKILL.md frontmatter (`name`, `description`) and (b) can run shell commands will work. Point the client at the `.claude/skills/` directory or copy folders into whatever skills path it expects.
-
-### Compatibility Matrix
-
-The skills are **tool-agnostic** — they're just Markdown procedures plus `bash` / `curl` calls to the GreenNode REST APIs. Every SKILL.md-aware client with shell access can run them end-to-end. Differences below are about **UX**, not capability.
-
-| | Claude Code | Cursor | Codex | Other SKILL.md clients |
-|---|:-:|:-:|:-:|:-:|
-| Typical skills directory | `.claude/skills/` | `.cursor/skills/` | `.agents/skills/` | client-specific |
-| Invocation | `/skill-name` | `/skill-name` (Agent) | natural language / CLI | varies |
-| Auto-routing by description | ✅ native | ✅ | ✅ | depends on client |
-| Runs shell / HTTP from skills | ✅ | ✅ (Agent mode) | ✅ | requires shell tool |
-| Full deploy & monitor pipeline | ✅ | ✅ | ✅ | ✅ if shell available |
-
-> The skills are authored and tuned primarily on Claude Code — that's where routing and prompts are validated. Functionally though, every tool with shell access can run them; Cursor / Codex / other clients just don't have a dedicated test pass yet.
+| Tool | Install method | Shell scripts supported |
+|---|---|---|
+| Claude Code | `/plugin install` via marketplace | Yes |
+| Codex CLI | `config.toml` plugin entry | Yes |
+| Cursor | Team marketplace UI | Yes |
+| Windsurf | Manual copy of `skills/*/SKILL.md` | No (markdown only) |
+| GitHub Copilot | Not supported | No |
 
 ---
 
@@ -212,7 +183,10 @@ Or, first time, just:
 
 ```
 greennode-agentbase-skills/
-├── .claude/skills/             # <-- the skills you install
+├── .claude-plugin/             # Claude Code plugin + marketplace manifests
+├── .codex-plugin/              # Codex CLI plugin manifest
+├── .cursor-plugin/             # Cursor plugin manifest
+├── skills/                     # <-- the skills you install
 │   ├── agentbase/              # platform reference
 │   ├── agentbase-wizard/       # guided full-lifecycle wizard
 │   ├── agentbase-deploy/       # build, push, deploy + Container Registry + OpenClaw
