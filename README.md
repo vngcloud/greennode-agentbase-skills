@@ -174,7 +174,7 @@ Or, first time, just:
 ```
 greennode-agentbase-skills/
 ├── .claude-plugin/             # Claude Code plugin + marketplace manifests
-├── .codex-plugin/              # Codex app plugin manifest
+├── .codex-plugin/              # Codex plugin manifest (paired with .agents marketplace)
 ├── .agents/plugins/            # Codex CLI marketplace manifest
 ├── skills/                     # <-- the skills you install
 │   ├── agentbase/              # platform reference

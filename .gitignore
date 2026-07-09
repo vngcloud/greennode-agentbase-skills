@@ -2,6 +2,9 @@
 docs/superpowers/
 .superpowers/
 
+# Release process notes (internal maintainer only)
+docs/internal/
+
 # Local secrets
 .env
 .greennode.json

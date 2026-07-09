@@ -1,6 +1,6 @@
 {
   "name": "greennode-agentbase",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Full GreenNode AgentBase lifecycle: scaffold → configure → deploy → monitor → teardown. 10 skills including /agentbase-wizard, /agentbase-deploy, /agentbase-monitor.",
   "author": {
     "name": "GreenNode",
