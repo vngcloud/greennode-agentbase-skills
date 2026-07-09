@@ -63,7 +63,11 @@ runtime_can_use_poc() {
     { printf '%s' "$body" | jq . 2>/dev/null || printf '%s' "$body"; } >&2
     echo "false"; return 1
   fi
-  val=$(printf '%s' "$body" | jq -r '(.canUseRuntimePoc // .data.canUseRuntimePoc // empty)' 2>/dev/null || true)
+  val=$(printf '%s' "$body" | jq -r '
+      .canUseRuntimePoc as $top | (.data // {}).canUseRuntimePoc as $nested |
+      if ($top == true or $top == false) then $top
+      elif ($nested == true or $nested == false) then $nested
+      else empty end' 2>/dev/null || true)
   case "$val" in
     true|false) echo "$val"; return 0 ;;
     *) echo "ERROR: can-use-poc response missing canUseRuntimePoc: $body" >&2; echo "false"; return 1 ;;
