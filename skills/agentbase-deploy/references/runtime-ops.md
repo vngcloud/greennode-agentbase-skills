@@ -27,7 +27,7 @@ Runtime usage is billed. The platform has two wallets: a **POC wallet** (free cr
    - **`true`** — use `AskUserQuestion` to let the user pick: **POC wallet** (`--poc true`) or **real wallet** (`--poc false`). Do NOT auto-pick.
    - **`false`** — inform the user only the real wallet is available, and proceed with `--poc false`.
 
-`poc=true` → POC wallet (free credits). `poc=false` → real wallet (customer money). Always pass `--poc` explicitly; never omit it. The script re-verifies POC eligibility when `--poc true` and refuses to create if the account is not permitted.
+`poc=true` → POC wallet (free credits). `poc=false` → real wallet (customer money). Always pass `--poc` explicitly; never omit it. The script re-verifies POC eligibility when `--poc true` and refuses to create if the account is not permitted. This eligibility check is a **live, read-only** call — it runs even under `--dry-run`, so `--dry-run` still requires valid IAM credentials.
 
 **Step 1 - Ask the user for required info:**
 - **Name**: Runtime name (lowercase, hyphens allowed). If not provided, ask.

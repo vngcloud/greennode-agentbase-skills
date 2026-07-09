@@ -323,7 +323,9 @@ do_update() {
     echo "ERROR: Could not read current runtime to preserve its wallet (poc). Aborting update." >&2
     return 1
   fi
-  existing_poc=$(printf '%s' "$cur" | jq -r '.poc // false' 2>/dev/null || true)
+  # Explicit boolean check (not `// false`, which would drop a legitimate `false`
+  # wallet) — mirrors runtime_can_use_poc(). The case below is defense-in-depth.
+  existing_poc=$(printf '%s' "$cur" | jq -r '.poc as $p | if ($p == true or $p == false) then $p else false end' 2>/dev/null || true)
   case "$existing_poc" in true|false) ;; *) existing_poc="false" ;; esac
 
   # Build environment variables JSON
