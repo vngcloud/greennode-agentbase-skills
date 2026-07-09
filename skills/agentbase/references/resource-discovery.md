@@ -21,6 +21,7 @@ For JSON output, use `bash .claude/skills/agentbase/scripts/discovery.sh json`
 | Delegated Providers | `GET /api/v1/outbound-auth/delegated-api-key-providers?page=0&size=100` | `https://agentbase.api.vngcloud.vn/identity` | 0-indexed | `.content` |
 | OAuth2 Providers | `GET /api/v1/outbound-auth/oauth2-providers?page=0&size=100` | `https://agentbase.api.vngcloud.vn/identity` | 0-indexed | `.content` |
 | Runtimes | `GET /agent-runtimes?page=1&size=100` | `https://agentbase.api.vngcloud.vn/runtime` | 1-indexed | `.listData` |
+| OpenClaws | `GET /openclaws?page=1&size=100` | `https://agentbase.api.vngcloud.vn/runtime` | 1-indexed | `.listData` |
 | Memories | `GET /memories?page=1&size=100` | `https://agentbase.api.vngcloud.vn/memory` | 1-indexed | `.listData` |
 | AIP API Keys | `GET /v1/api-keys?page=1&size=100` | `https://aiplatform-hcm.api.vngcloud.vn` | 1-indexed | `.listData` |
 | CR Repository | `GET /repository` | `https://agentbase.api.vngcloud.vn/cr/api/v1` | N/A (single repo) | `[.]` (bare object) |

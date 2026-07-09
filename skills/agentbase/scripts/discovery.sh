@@ -15,13 +15,16 @@ if [ ${#ARGS[@]} -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
 DISCOVERY_FILE="$AGENTBASE_DIR/discovery.json"
 
 # --- Fetch a single resource type ---
-# fetch_resource LABEL URL ITEMS_PATH TMPDIR
+# fetch_resource LABEL URL ITEMS_PATH TMPDIR [REDACT_FIELDS]
 # Writes JSON result to TMPDIR/<label>.json
+# REDACT_FIELDS (optional): comma-separated fields to redact from the response
+# (e.g. "gatewayToken,botToken") so secrets never enter discovery.json / the dashboard.
 fetch_resource() {
   local label="$1"
   local url="$2"
   local items_path="$3"
   local tmpdir="$4"
+  local redact_fields="${5:-}"
   local outfile="$tmpdir/${label}.json"
 
   if [ "$DRY_RUN" = true ]; then
@@ -31,7 +34,7 @@ fetch_resource() {
   fi
 
   local response
-  if response=$(api_call GET "$url" 2>/dev/null); then
+  if response=$(REDACT_FIELDS="$redact_fields" api_call GET "$url" 2>/dev/null); then
     local items count
     items=$(echo "$response" | jq -c "$items_path // []" 2>/dev/null || echo '[]')
     count=$(echo "$items" | jq 'length' 2>/dev/null || echo '0')
@@ -103,6 +106,10 @@ do_all() {
     "${AGENTBASE_RUNTIME_URL}/agent-runtimes?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
     ".listData" "$tmpdir" &
 
+  fetch_resource "openclaws" \
+    "${AGENTBASE_RUNTIME_URL}/openclaws?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
+    ".listData" "$tmpdir" "gatewayToken" &
+
   fetch_resource "memories" \
     "${AGENTBASE_MEMORY_URL}/memories?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
     ".listData" "$tmpdir" &
@@ -125,6 +132,7 @@ do_all() {
     --slurpfile delegated_api_key_providers "$tmpdir/delegated_api_key_providers.json" \
     --slurpfile oauth2_providers "$tmpdir/oauth2_providers.json" \
     --slurpfile runtimes "$tmpdir/runtimes.json" \
+    --slurpfile openclaws "$tmpdir/openclaws.json" \
     --slurpfile memories "$tmpdir/memories.json" \
     --slurpfile aip_api_keys "$tmpdir/aip_api_keys.json" \
     --slurpfile cr_repository "$tmpdir/cr_repository.json" \
@@ -134,6 +142,7 @@ do_all() {
       delegatedApiKeyProviders: $delegated_api_key_providers[0],
       oauth2Providers: $oauth2_providers[0],
       runtimes: $runtimes[0],
+      openclaws: $openclaws[0],
       memories: $memories[0],
       aipApiKeys: $aip_api_keys[0],
       crRepository: $cr_repository[0]
@@ -161,6 +170,9 @@ do_all() {
 
   print_section "Runtimes" "$tmpdir/runtimes.json" \
     '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")\t\(.poc as $p | if $p == true then "wallet=poc" elif $p == false then "wallet=real" else "wallet=-" end)"'
+
+  print_section "OpenClaws" "$tmpdir/openclaws.json" \
+    '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.flavorId // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")\t\(.poc as $p | if $p == true then "wallet=poc" elif $p == false then "wallet=real" else "wallet=-" end)"'
 
   print_section "Memories" "$tmpdir/memories.json" \
     '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")"'
@@ -206,6 +218,10 @@ do_json() {
     "${AGENTBASE_RUNTIME_URL}/agent-runtimes?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
     ".listData" "$tmpdir" &
 
+  fetch_resource "openclaws" \
+    "${AGENTBASE_RUNTIME_URL}/openclaws?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
+    ".listData" "$tmpdir" "gatewayToken" &
+
   fetch_resource "memories" \
     "${AGENTBASE_MEMORY_URL}/memories?page=${DEFAULT_FIRST_PAGE}&size=${DEFAULT_PAGE_SIZE}" \
     ".listData" "$tmpdir" &
@@ -228,6 +244,7 @@ do_json() {
     --slurpfile delegated_api_key_providers "$tmpdir/delegated_api_key_providers.json" \
     --slurpfile oauth2_providers "$tmpdir/oauth2_providers.json" \
     --slurpfile runtimes "$tmpdir/runtimes.json" \
+    --slurpfile openclaws "$tmpdir/openclaws.json" \
     --slurpfile memories "$tmpdir/memories.json" \
     --slurpfile aip_api_keys "$tmpdir/aip_api_keys.json" \
     --slurpfile cr_repository "$tmpdir/cr_repository.json" \
@@ -237,6 +254,7 @@ do_json() {
       delegatedApiKeyProviders: $delegated_api_key_providers[0],
       oauth2Providers: $oauth2_providers[0],
       runtimes: $runtimes[0],
+      openclaws: $openclaws[0],
       memories: $memories[0],
       aipApiKeys: $aip_api_keys[0],
       crRepository: $cr_repository[0]
