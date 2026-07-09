@@ -135,6 +135,7 @@ do_create() {
   local min_replicas="" max_replicas="" cpu_scale="" mem_scale=""
   local registry_credentials="" from_cr=false
   local network_mode="" vpc_id="" subnet_id="" route_cidrs=""
+  local poc=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -153,6 +154,7 @@ do_create() {
       --vpc-id) vpc_id="$2"; shift 2 ;;
       --subnet-id) subnet_id="$2"; shift 2 ;;
       --route-cidrs) route_cidrs="$2"; shift 2 ;;
+      --poc) poc="$2"; shift 2 ;;
       *) echo "ERROR: Unknown option for create: $1" >&2; return 1 ;;
     esac
   done
@@ -169,6 +171,14 @@ do_create() {
   if [ -z "$description" ]; then
     description="$name"
   fi
+
+  # Normalize poc wallet flag. poc=true => POC wallet (free credits);
+  # poc=false => real wallet (customer-funded). Empty defaults to real wallet.
+  case "${poc:-}" in
+    true|"yes"|"1") poc="true" ;;
+    false|"no"|"0"|"") poc="false" ;;
+    *) echo "ERROR: --poc must be 'true' or 'false' (got: $poc)" >&2; return 1 ;;
+  esac
 
   # Build environment variables JSON
   local env_json="{}"
@@ -197,10 +207,12 @@ do_create() {
     --arg flavorId "$flavor_id" \
     --argjson environmentVariables "$env_json" \
     --argjson autoscaling "$autoscaling_json" \
+    --argjson poc "$poc" \
     '{name: $name, description: $description, imageUrl: $imageUrl, flavorId: $flavorId,
       command: [], args: [],
       environmentVariables: $environmentVariables,
-      autoscaling: $autoscaling}')
+      autoscaling: $autoscaling,
+      poc: $poc}')
 
   # Handle private registry imageAuth
   local reg_user="" reg_pass=""
@@ -235,6 +247,21 @@ do_create() {
       --arg user "$reg_user" \
       --arg pass "$reg_pass" \
       '. + {imageAuth: {enabled: true, username: $user, password: $pass}}')
+  fi
+
+  # POC wallet eligibility backstop (fail-closed). Only the POC direction is
+  # dangerous to get wrong, so we re-verify it server-side right before create.
+  if [ "$poc" = "true" ]; then
+    local elig
+    if ! elig=$(runtime_can_use_poc); then
+      echo "ERROR: Could not verify POC wallet eligibility. Refusing to create." >&2
+      return 1
+    fi
+    if [ "$elig" != "true" ]; then
+      echo "ERROR: Your account is not permitted to use the POC wallet for runtime resources." >&2
+      echo "       Re-run with --poc false to charge the real wallet." >&2
+      return 1
+    fi
   fi
 
   # Handle optional networkConfig (PUBLIC by default; only emit when explicitly requested)
@@ -289,6 +316,16 @@ do_update() {
     echo "ERROR: --flavor is required for update" >&2; return 1
   fi
 
+  # Preserve the existing wallet: PATCH is a full-body update, so re-send the
+  # current poc value to avoid silently flipping wallets. No --poc flag on update.
+  local existing_poc="false" cur
+  if ! cur=$(REDACT_FIELDS="password" api_call GET "${BASE_URL}/${id}" 2>/dev/null); then
+    echo "ERROR: Could not read current runtime to preserve its wallet (poc). Aborting update." >&2
+    return 1
+  fi
+  existing_poc=$(printf '%s' "$cur" | jq -r '.poc // false' 2>/dev/null || true)
+  case "$existing_poc" in true|false) ;; *) existing_poc="false" ;; esac
+
   # Build environment variables JSON
   local env_json="{}"
   if [ -n "$env_file" ]; then
@@ -307,7 +344,7 @@ do_update() {
       cpuUtilization: ($cpuUtil | tonumber),
       memoryUtilization: ($memUtil | tonumber)}')
 
-  # Build base payload (all fields required by PATCH API)
+  # Build base payload (all fields required by PATCH API); poc carried over from GET
   local body
   body=$(jq -n \
     --arg imageUrl "$image_url" \
@@ -315,10 +352,12 @@ do_update() {
     --arg description "${description:-}" \
     --argjson environmentVariables "$env_json" \
     --argjson autoscaling "$autoscaling_json" \
+    --argjson poc "$existing_poc" \
     '{imageUrl: $imageUrl, flavorId: $flavorId,
       description: $description, command: [], args: [],
       environmentVariables: $environmentVariables,
-      autoscaling: $autoscaling}')
+      autoscaling: $autoscaling,
+      poc: $poc}')
 
   # Handle private registry imageAuth
   local reg_user="" reg_pass=""
@@ -668,6 +707,7 @@ do_help() {
          [--from-cr | --registry-credentials-file PATH]
          [--network-mode PUBLIC|VPC] [--vpc-id ID] [--subnet-id ID]
          [--route-cidrs CIDR1,CIDR2,...]
+         [--poc true|false]
                                                            Create a new Custom Agent runtime
                                                            (--from-cr pulls AgentBase CR credentials inline; no file needed)
                                                            (--network-mode VPC requires --vpc-id and --subnet-id;
