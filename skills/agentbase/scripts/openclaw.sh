@@ -71,6 +71,7 @@ do_create() {
   local name="" version_id="" flavor_id="" env_file=""
   local maas_enabled="" maas_api_key_name=""
   local telegram_channel_file="" zalo_channel_file=""
+  local poc=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -82,9 +83,17 @@ do_create() {
       --maas-api-key-name) maas_api_key_name="$2"; shift 2 ;;
       --telegram-channel-file) telegram_channel_file="$2"; shift 2 ;;
       --zalo-channel-file) zalo_channel_file="$2"; shift 2 ;;
+      --poc) poc="$2"; shift 2 ;;
       *) echo "ERROR: Unknown option for create: $1" >&2; return 1 ;;
     esac
   done
+
+  # Normalize poc wallet flag. poc=true => POC wallet; poc=false => real wallet.
+  case "${poc:-}" in
+    true|"yes"|"1") poc="true" ;;
+    false|"no"|"0"|"") poc="false" ;;
+    *) echo "ERROR: --poc must be 'true' or 'false' (got: $poc)" >&2; return 1 ;;
+  esac
 
   # Build environment variables JSON
   local env_json="{}"
@@ -121,7 +130,7 @@ do_create() {
     maas_json='{"enabled": false}'
   fi
 
-  # Build base payload
+  # Build base payload (poc is always sent — never rely on a server default)
   local body
   body=$(jq -n \
     --arg name "$name" \
@@ -130,12 +139,27 @@ do_create() {
     --argjson environmentVariables "$env_json" \
     --argjson channels "$channels_json" \
     --argjson greenNodeModelProvider "$maas_json" \
-    '{environmentVariables: $environmentVariables} +
+    --argjson poc "$poc" \
+    '{environmentVariables: $environmentVariables, poc: $poc} +
      (if $name != "" then {name: $name} else {} end) +
      (if $versionId != "" then {versionId: $versionId} else {} end) +
      (if $flavorId != "" then {flavorId: $flavorId} else {} end) +
      (if $channels != null then {channels: $channels} else {} end) +
      (if $greenNodeModelProvider != null then {greenNodeModelProvider: $greenNodeModelProvider} else {} end)')
+
+  # POC wallet eligibility backstop (fail-closed).
+  if [ "$poc" = "true" ]; then
+    local elig
+    if ! elig=$(runtime_can_use_poc); then
+      echo "ERROR: Could not verify POC wallet eligibility. Refusing to create." >&2
+      return 1
+    fi
+    if [ "$elig" != "true" ]; then
+      echo "ERROR: Your account is not permitted to use the POC wallet for OpenClaw resources." >&2
+      echo "       Re-run with --poc false to charge the real wallet." >&2
+      return 1
+    fi
+  fi
 
   REDACT_FIELDS="gatewayToken,botToken,apiKey" api_call POST "$BASE_URL" "$body"
 }
@@ -207,6 +231,7 @@ do_help() {
          [--env-file PATH]
          [--maas-enabled true|false] [--maas-api-key-name NAME]
          [--telegram-channel-file PATH] [--zalo-channel-file PATH]
+         [--poc true|false]
                                                                   Create a new OpenClaw
                                                                   (name auto-generated if omitted;
                                                                    default versionId / flavor 2x4-general are

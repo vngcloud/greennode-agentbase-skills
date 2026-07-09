@@ -25,6 +25,20 @@ The script handles authentication (auto token refresh), response redaction (`gat
 
 ### Interactive Parameter Gathering
 
+**Step 0 — Choose the billing wallet (POC vs real).**
+
+OpenClaw usage is billed. Check eligibility, then let the user pick a wallet (do NOT auto-pick):
+
+```bash
+bash .claude/skills/agentbase/scripts/billing.sh can-use-poc
+# → {"canUseRuntimePoc": true|false}
+```
+
+- `canUseRuntimePoc = true` → use `AskUserQuestion`: POC wallet (`--poc true`) or real wallet (`--poc false`).
+- `canUseRuntimePoc = false` → inform the user only the real wallet is available; proceed with `--poc false`.
+
+Always pass `--poc` explicitly. With `--poc true`, the script re-checks eligibility and refuses to create if the account is not permitted.
+
 **Step 1 — Pick a version.**
 
 Run `openclaw.sh versions` to list all available `OpenClawVersionDto` entries:
@@ -90,6 +104,7 @@ Show the final config and wait for explicit confirmation before invoking `create
 - `environmentVariables` (object) — key/value strings injected into the container.
 - `greenNodeModelProvider` ({ `enabled`: bool, `apiKeyName`: string }) — enable to wire MaaS automatically.
 - `channels` ({ `telegram`?: Channel, `zalo`?: Channel }) — at least one channel for a usable bot.
+- `poc` (boolean) — **always sent.** `true` bills the POC wallet (free credits), `false` bills the real wallet. Set via Step 0. When `true`, the script enforces the `can-use-poc` check.
 
 **Channel object**: `{ botToken, dmPolicy, dmAllowedUserIds }` (see Step 4 above).
 
@@ -103,7 +118,8 @@ bash .claude/skills/agentbase/scripts/openclaw.sh create \
   --name my-tele-bot \
   --flavor 2x4-general \
   --maas-enabled true \
-  --telegram-channel-file /tmp/telegram-channel.json
+  --telegram-channel-file /tmp/telegram-channel.json \
+  --poc false
 
 rm -f /tmp/telegram-channel.json
 ```
@@ -133,6 +149,7 @@ rm -f /tmp/zalo-channel.json
 | `gatewayToken` | One-time token included in `url`. **Treat as a secret; do not log.** Redacted by the script. |
 | `greenNodeApiKeyName` | Name of the MaaS API key the platform wired in (only when `greenNodeModelProvider.enabled=true`). |
 | `flavorId`, `status`, `createdAt`, `updatedAt` | Standard metadata. |
+| `poc` | Wallet in use: `true` = POC wallet (free credits), `false` = real wallet. |
 
 > **Important**: `gatewayToken` is only returned on `create`. Subsequent `get` calls return the OpenClaw without it. Capture the full URL from the create response and hand it to the user immediately.
 

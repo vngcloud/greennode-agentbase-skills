@@ -39,6 +39,41 @@ init_token() {
   export TOKEN
 }
 
+# --- POC wallet eligibility ---
+# Whether the current IAM token's owner may bill runtime/openclaw resources
+# against the POC wallet (free credits). Queries the billing service on the AIP
+# host — same IAM bearer token as other AgentBase services.
+#
+# Echoes "true"/"false" on stdout. Returns 0 on a completed check; returns 1 if
+# the check itself failed (HTTP error, non-JSON, missing field) so callers can
+# tell "not eligible" apart from "could not determine" and fail-closed.
+runtime_can_use_poc() {
+  init_token
+  local raw http_code body val
+  if ! raw=$(curl -s -w '\n%{http_code}' -X GET \
+        "${AIP_MANAGEMENT_URL}/v1/runtime-billing/can-use-poc" \
+        -H "Authorization: Bearer $TOKEN" 2>/dev/null); then
+    echo "ERROR: can-use-poc request failed (curl error)" >&2
+    echo "false"; return 1
+  fi
+  http_code=$(printf '%s' "$raw" | tail -n1)
+  body=$(printf '%s' "$raw" | sed '$d')
+  if [ -z "$http_code" ] || [[ "$http_code" -ge 400 ]]; then
+    echo "ERROR: can-use-poc check failed (HTTP ${http_code:-unknown})" >&2
+    { printf '%s' "$body" | jq . 2>/dev/null || printf '%s' "$body"; } >&2
+    echo "false"; return 1
+  fi
+  val=$(printf '%s' "$body" | jq -r '
+      .canUseRuntimePoc as $top | (.data // {}).canUseRuntimePoc as $nested |
+      if ($top == true or $top == false) then $top
+      elif ($nested == true or $nested == false) then $nested
+      else empty end' 2>/dev/null || true)
+  case "$val" in
+    true|false) echo "$val"; return 0 ;;
+    *) echo "ERROR: can-use-poc response missing canUseRuntimePoc: $body" >&2; echo "false"; return 1 ;;
+  esac
+}
+
 # --- Parse common flags from argument list ---
 # Usage: ARGS=($(parse_flags "$@"))
 # Sets VERBOSE, DRY_RUN, OUTPUT_FORMAT, REDACT_FIELDS as side effects.

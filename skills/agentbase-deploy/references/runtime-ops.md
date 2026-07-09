@@ -14,6 +14,21 @@ The script handles authentication (auto token refresh), response redaction (sens
 
 Before creating, gather the following from the user. Ask for required info and recommend sensible defaults for the rest.
 
+**Step 0 - Choose the billing wallet (POC vs real) — REQUIRED, do this first:**
+
+Runtime usage is billed. The platform has two wallets: a **POC wallet** (free credits) and a **real wallet** (funded by the customer). The user must choose which to charge, via the `poc` field.
+
+1. Check eligibility first:
+   ```bash
+   bash .claude/skills/agentbase/scripts/billing.sh can-use-poc
+   # → {"canUseRuntimePoc": true|false}
+   ```
+2. Read `canUseRuntimePoc`:
+   - **`true`** — use `AskUserQuestion` to let the user pick: **POC wallet** (`--poc true`) or **real wallet** (`--poc false`). Do NOT auto-pick.
+   - **`false`** — inform the user only the real wallet is available, and proceed with `--poc false`.
+
+`poc=true` → POC wallet (free credits). `poc=false` → real wallet (customer money). Always pass `--poc` explicitly; never omit it. The script re-verifies POC eligibility when `--poc true` and refuses to create if the account is not permitted. This eligibility check is a **live, read-only** call — it runs even under `--dry-run`, so `--dry-run` still requires valid IAM credentials.
+
 **Step 1 - Ask the user for required info:**
 - **Name**: Runtime name (lowercase, hyphens allowed). If not provided, ask.
 - **Image URL**: Container image URL (e.g. `registry.example.com/my-agent:latest`). Must be provided.
@@ -59,6 +74,7 @@ Show the final configuration and ask the user to confirm before sending.
   - `maxReplicas` (int, 1-10)
   - `cpuUtilization` (int, 10-90)
   - `memoryUtilization` (int, 10-90)
+- `poc` (boolean) — **always sent.** `true` bills the POC wallet (free credits), `false` bills the real wallet (customer-funded). Choose via the Step 0 wallet flow. When `true`, the script enforces the `can-use-poc` eligibility check.
 
 **Required for private registry** (`imageAuth` object):
 - `imageAuth.enabled` (bool, default `true`)
@@ -111,7 +127,8 @@ Exit status is `0` when both checks pass, `1` otherwise; the JSON report names w
 bash .claude/skills/agentbase/scripts/runtime.sh create \
   --name my-agent \
   --image "registry.example.com/my-agent:v1" \
-  --flavor 1x1-general
+  --flavor 1x1-general \
+  --poc false
 ```
 
 **Example (private registry — imageAuth required)**:
@@ -169,7 +186,7 @@ bash .claude/skills/agentbase/scripts/runtime.sh list --page 1 --size 20
 
 **Response**: `{ "listData": [...], "page": 1, "pageSize": 20, "totalPage": 1, "totalItem": 3 }`
 
-Display results as a table: ID, Name, Status, Description, Created.
+Display results as a table: ID, Name, Status, Description, Wallet (`poc`), Created.
 
 ---
 
@@ -179,7 +196,7 @@ Display results as a table: ID, Name, Status, Description, Created.
 bash .claude/skills/agentbase/scripts/runtime.sh get $RUNTIME_ID
 ```
 
-**Response fields**: `id`, `name`, `description`, `status`, `statusReason`, `createdAt`, `updatedAt`.
+**Response fields**: `id`, `name`, `description`, `status`, `statusReason`, `createdAt`, `updatedAt`, `poc` (`true` = POC wallet, `false` = real wallet).
 
 > **Note**: The runtime response does NOT include `flavorId`, `imageUrl`, `environmentVariables`, or `autoscaling`. To get these details, query the versions endpoint: `runtime.sh versions $RUNTIME_ID`.
 
