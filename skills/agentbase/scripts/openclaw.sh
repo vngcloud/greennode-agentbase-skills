@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # GreenNode AgentBase — OpenClaw Management
 # Manage pre-built (template-based) OpenClaw agents on the Runtime Service.
-# These are platform-provided agents (e.g. Telegram/Zalo bots) created from
+# These are platform-provided chatbot agents (connected to users via Telegram/Zalo channels) created from
 # a versioned template — distinct from Custom Agents (/agent-runtimes) which
 # the user builds and packages as their own Docker image.
 #

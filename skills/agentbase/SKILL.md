@@ -25,7 +25,7 @@ AgentBase is a dedicated infrastructure platform for enterprise AI agents by Gre
 - **Console**: https://aiplatform.console.vngcloud.vn/agent-runtime?tab=runtime
 - Hosts two resource types:
   - **Custom Agent** (`/agent-runtimes`) — user-built Docker images. Supports autoscaling, named endpoints (canary + DEFAULT), versioning, zero-downtime deploys, and optional VPC network mode (`networkConfig` with `mode`, `vpcId`, `subnetId`, `routeCidrs`). Default trigger for wizard-built agents.
-  - **OpenClaw** (`/openclaws`) — pre-built template agents (Telegram / Zalo chat bots) parameterized by version, flavor, model provider, and channel tokens. No Docker image required.
+  - **OpenClaw** (`/openclaws`) — platform-built template chatbot agents that connect to users via Telegram/Zalo channels, parameterized by version, flavor, model provider, and channel tokens. No Docker image required.
 
   See `/agentbase-deploy` for both flows.
 

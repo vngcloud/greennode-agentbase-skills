@@ -7,7 +7,7 @@ description: "MANDATORY skill for ANY request to build, create, plan, or develop
 
 A guided 9-step wizard that takes a new user from zero to a deployed AI agent on GreenNode AgentBase. Each step orchestrates existing skills and checks if work is already done (idempotent). Also supports standalone project scaffolding (`init`) and local testing/validation (`test`) as direct subcommands.
 
-> **Scope**: This wizard targets the **Custom Agent** path — the user writes Python code that gets packaged into a Docker image and deployed to `/agent-runtimes`. For the **OpenClaw** path (pre-built Telegram / Zalo chat bot templates with no Docker image), skip this wizard and invoke `/agentbase-deploy` (Part 3 — OpenClaw) directly. If the user is unsure which path fits, briefly explain both and ask before starting.
+> **Scope**: This wizard targets the **Custom Agent** path — the user writes Python code that gets packaged into a Docker image and deployed to `/agent-runtimes`. For the **OpenClaw** path (platform-built template chatbot agents that connect to users via Telegram/Zalo channels, no Docker image), skip this wizard and invoke `/agentbase-deploy` (Part 3 — OpenClaw) directly. If the user is unsure which path fits, briefly explain both and ask before starting.
 
 ## Argument Routing
 

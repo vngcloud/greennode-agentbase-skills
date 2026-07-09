@@ -1,6 +1,6 @@
 # Custom Agent Runtime Management — Full Operations Reference
 
-Detailed operations for managing **Custom Agents** (resource type `/agent-runtimes`) on GreenNode AgentBase Runtime Service. A Custom Agent is a user-built application whose code is packaged into a Docker image the user supplies. For **OpenClaw** (pre-built template agents like Telegram/Zalo bots, resource type `/openclaws`), see `references/openclaw-ops.md` and use `openclaw.sh`.
+Detailed operations for managing **Custom Agents** (resource type `/agent-runtimes`) on GreenNode AgentBase Runtime Service. A Custom Agent is a user-built application whose code is packaged into a Docker image the user supplies. For **OpenClaw** (platform-built template chatbot agents that connect to users via Telegram/Zalo channels, resource type `/openclaws`), see `references/openclaw-ops.md` and use `openclaw.sh`.
 
 All operations use the runtime script: `bash .claude/skills/agentbase/scripts/runtime.sh`
 

@@ -160,7 +160,7 @@ do_all() {
     '"\(.name // .id // "unknown")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")"'
 
   print_section "Runtimes" "$tmpdir/runtimes.json" \
-    '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")"'
+    '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")\t\(.poc as $p | if $p == true then "wallet=poc" elif $p == false then "wallet=real" else "wallet=-" end)"'
 
   print_section "Memories" "$tmpdir/memories.json" \
     '"\(.id // "unknown")\t\(.name // "-")\t\(.status // "-")\t\(.createdAt // .created_at // "-" | split("T")[0] // "-")"'

@@ -326,7 +326,7 @@ Container Registry:
 - **IAM**: Show masked client_id (first 3 + last 3 chars)
 - **Agent Identities**: Name and description for each
 - **Auth Providers**: Group by type (API Key, Delegated, OAuth2). Show name and status for each. Show "none" if empty.
-- **Runtimes**: Name, status, description. For each runtime, list its endpoints with name, version, URL, and status. Fetch endpoints via `bash .claude/skills/agentbase/scripts/runtime.sh endpoints list $RUNTIME_ID`. (Note: runtime list DTO contains `id, name, description, status, statusReason, createdAt, updatedAt` — for flavor/version details, use `bash .claude/skills/agentbase/scripts/runtime.sh versions $RUNTIME_ID` which returns `version`, `imageUrl`, `flavorId`, `autoscaling` per version.)
+- **Runtimes**: Name, status, description, wallet (`poc`). For each runtime, list its endpoints with name, version, URL, and status. Fetch endpoints via `bash .claude/skills/agentbase/scripts/runtime.sh endpoints list $RUNTIME_ID`. (Note: runtime list DTO contains `id, name, description, status, statusReason, createdAt, updatedAt, poc` — `poc=true` bills the POC wallet (free credits), `poc=false` the real wallet. For flavor/version details, use `bash .claude/skills/agentbase/scripts/runtime.sh versions $RUNTIME_ID` which returns `version`, `imageUrl`, `flavorId`, `autoscaling` per version.)
 - **Memory**: Name, number of strategies, event expiry duration
 - **AI Platform**: API key names and status
 - **Container Registry**: Repo names and access level (public/private)

@@ -1,11 +1,11 @@
 ---
 name: agentbase-deploy
-description: "Deploy and operate AI agents on GreenNode AgentBase. Supports two resource types: Custom Agent (user-built Docker image, /agent-runtimes) and OpenClaw (platform templates for Telegram/Zalo bots, /openclaws). Part 1 — Deploy Custom Agent (build, push, create/update runtime in PUBLIC or VPC mode). Trigger: deploy my agent, ship it, redeploy, deploy in VPC. Part 2 — Custom Agent runtime management (endpoints, scaling, versions, network mode). Trigger: list runtimes, scale, delete runtime, list flavors. Part 3 — OpenClaw (Telegram/Zalo bot templates). Trigger: deploy a Telegram bot, deploy a Zalo bot, create/list/start/stop OpenClaw, switch OpenClaw version. Part 4 — Container Registry (managed Docker repo, credentials, images, artifacts). Trigger: get repo info, docker login, push image, list/delete images. DO NOT use for non-AI-agent apps. For logs/metrics use /agentbase-monitor."
+description: "Deploy and operate AI agents on GreenNode AgentBase — covers runtime deploy & lifecycle (Custom Agent and OpenClaw), and the managed Container Registry. Trigger: deploy my agent, ship it, deploy a chatbot agent for Telegram/Zalo, list/scale/delete runtimes, switch OpenClaw version, docker login, push image. DO NOT use for scaffolding agent code (use /agentbase-wizard), platform LLM API keys (/agentbase-llm), agent memory (/agentbase-memory), agent identity or outbound auth (/agentbase-identity), logs or metrics (/agentbase-monitor), tearing down all resources (/agentbase-teardown), or general platform questions (/agentbase)."
 ---
 
 # AgentBase Deploy, Runtime & Registry
 
-Full end-to-end deployment, runtime management, and container registry operations for AI agents on GreenNode AgentBase. Covers both **Custom Agent** runtimes (user-built Docker images, resource type `/agent-runtimes`) and **OpenClaw** template agents (platform-built chat bots, resource type `/openclaws`).
+Full end-to-end deployment, runtime management, and container registry operations for AI agents on GreenNode AgentBase. Covers both **Custom Agent** runtimes (user-built Docker images, resource type `/agent-runtimes`) and **OpenClaw** template agents (platform-built chatbot agents that connect to Telegram/Zalo via channels, resource type `/openclaws`).
 
 - **Console**: https://aiplatform.console.vngcloud.vn/agent-runtime?tab=runtime
 
@@ -16,9 +16,9 @@ The Runtime Service hosts two distinct resource types. Decide which one the user
 | Resource type | API path | What it is | When to use |
 |---------------|----------|------------|-------------|
 | **Custom Agent** | `/agent-runtimes` | The user writes their own code, packages it into a Docker image, and the platform runs that image with autoscaling, endpoints, and optional VPC networking. | "Deploy my agent", "I have a Dockerfile", "ship my code", "BYO agent", anything that involves writing custom Python/Node/Java code. **Default for the wizard**. Use **Part 1 & Part 2**. |
-| **OpenClaw** | `/openclaws` | A platform-built template agent (Telegram or Zalo chatbot) parameterized by version, flavor, model provider, channel tokens, and environment variables. No Docker image needed. | "Deploy a Telegram bot", "deploy a Zalo bot", "I just want a chat bot — no coding". Use **Part 3**. |
+| **OpenClaw** | `/openclaws` | A platform-built template chatbot agent that connects to users via Telegram/Zalo channels (the bot token comes from Telegram BotFather or Zalo OA Console — the agent is what you deploy, channels are how it talks). Parameterized by version, flavor, model provider, channel tokens, and environment variables. No Docker image needed. | "Deploy a chatbot agent for Telegram", "deploy a chatbot agent for Zalo", "I just want a chat bot — no coding". Use **Part 3**. |
 
-When in doubt, ask the user explicitly with AskUserQuestion: "Are you deploying your own Docker image (Custom Agent) or creating a chat bot from an OpenClaw template (Telegram / Zalo)?"
+When in doubt, ask the user explicitly with AskUserQuestion: "Are you deploying your own Docker image (Custom Agent) or creating an OpenClaw chatbot agent connected to Telegram / Zalo?"
 
 > Both resource types share the same Container Registry (Part 4) and the same authentication (IAM bearer token), but their CRUD APIs, scripts, and parameter sets are different — do not mix them up.
 
@@ -380,7 +380,7 @@ Use `bash .claude/skills/agentbase/scripts/runtime.sh help` for full command ref
 
 # Part 3: OpenClaw (Pre-built Template Agents)
 
-OpenClaw is a **platform-templated** agent: the user picks a versioned template, a flavor, optional GreenNode AI Platform (MaaS) wiring, and one or more chat channels (Telegram / Zalo). The platform builds and runs the container — the user does **not** supply a Docker image, env injection rules, or autoscaling parameters. This is the right path when the user says "deploy a Telegram bot" or "deploy a Zalo bot".
+OpenClaw is a **platform-templated** chatbot agent: the user picks a versioned template, a flavor, optional GreenNode AI Platform (MaaS) wiring, and one or more chat channels (Telegram / Zalo). The platform builds and runs the container — the user does **not** supply a Docker image, env injection rules, or autoscaling parameters. This is the right path when the user says "deploy a chatbot agent for Telegram" or "deploy a chatbot agent for Zalo".
 
 Use `bash .claude/skills/agentbase/scripts/openclaw.sh help` for full command reference.
 

@@ -108,7 +108,7 @@ Show the final config and wait for explicit confirmation before invoking `create
 
 **Channel object**: `{ botToken, dmPolicy, dmAllowedUserIds }` (see Step 4 above).
 
-**Example (Telegram bot, GreenNode AI Platform model)**:
+**Example (Telegram channel, GreenNode AI Platform model)**:
 ```bash
 cat > /tmp/telegram-channel.json <<'EOF'
 {"botToken": "<telegram-bot-token>", "dmPolicy": "pairing", "dmAllowedUserIds": []}
@@ -124,7 +124,7 @@ bash .claude/skills/agentbase/scripts/openclaw.sh create \
 rm -f /tmp/telegram-channel.json
 ```
 
-**Example (Zalo bot, allowlist DM policy, external LLM via env)**:
+**Example (Zalo channel, allowlist DM policy, external LLM via env)**:
 ```bash
 cat > /tmp/zalo-channel.json <<'EOF'
 {"botToken": "<zalo-token>", "dmPolicy": "allowlist", "dmAllowedUserIds": ["zalo-user-1", "zalo-user-2"]}
@@ -161,7 +161,7 @@ rm -f /tmp/zalo-channel.json
 bash .claude/skills/agentbase/scripts/openclaw.sh list --page 1 --size 20
 ```
 
-**Response**: `{ "listData": [...], "page": 1, "pageSize": 20, "totalPage": N, "totalItem": N }` (GreenNode-style, 1-indexed). Display as a table: ID, Name, Status, Flavor, Created.
+**Response**: `{ "listData": [...], "page": 1, "pageSize": 20, "totalPage": N, "totalItem": N }` (GreenNode-style, 1-indexed). Each item is an `OpenClawDto` (`id`, `name`, `versionId`, `url`, `greenNodeApiKeyName`, `flavorId`, `status`, `createdAt`, `updatedAt`, `poc`). Display as a table: ID, Name, Status, Flavor, Wallet (`poc`), Created.
 
 ---
 
@@ -170,6 +170,10 @@ bash .claude/skills/agentbase/scripts/openclaw.sh list --page 1 --size 20
 ```bash
 bash .claude/skills/agentbase/scripts/openclaw.sh get $OPENCLAW_ID
 ```
+
+**Response fields** (`OpenClawDto`): `id`, `name`, `versionId`, `url`, `greenNodeApiKeyName`, `flavorId`, `status`, `createdAt`, `updatedAt`, `poc` (`true` = POC wallet / free credits, `false` = real wallet / customer-funded).
+
+> `gatewayToken` is **not** returned by `get` — only on the `create` response. The wallet (`poc`) is fixed at create time and cannot be changed afterwards (OpenClaw supports only version switching, not field-level updates).
 
 ---
 
@@ -239,4 +243,4 @@ Use this list before `create` (to pick a version) or `update-version` (to switch
 | MaaS wiring | One flag (`greenNodeModelProvider.enabled`) | User wires env vars themselves |
 | Lifecycle ops | `start` / `stop` available | `start` / `stop` not supported (scaling controlled via autoscaling and endpoints) |
 
-When a user asks "deploy a Telegram bot", default to OpenClaw. When they say "deploy my agent code" or "I have a Dockerfile", default to Custom Agent.
+When a user asks "deploy a chatbot agent for Telegram", default to OpenClaw. When they say "deploy my agent code" or "I have a Dockerfile", default to Custom Agent.
