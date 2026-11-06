@@ -17,9 +17,8 @@ BASE_URL="$VSERVER_URL"
 
 # --- Parse action + common flags ---
 ACTION="${1:-help}"; shift 2>/dev/null || true
-ARGS=()
-while IFS= read -r line; do ARGS+=("$line"); done < <(parse_flags "$@")
-if [ ${#ARGS[@]} -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
+parse_flags "$@"
+set -- ${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"}
 
 # --- Filter helpers — keep only fields useful for picking IDs ---
 

@@ -16,9 +16,8 @@ VERSIONS_URL="$AGENTBASE_RUNTIME_URL/openclaw-versions"
 
 # --- Parse action + common flags ---
 ACTION="${1:-help}"; shift 2>/dev/null || true
-ARGS=()
-while IFS= read -r line; do ARGS+=("$line"); done < <(parse_flags "$@")
-if [ ${#ARGS[@]} -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
+parse_flags "$@"
+set -- ${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"}
 
 # --- Helpers ---
 

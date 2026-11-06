@@ -259,8 +259,10 @@ Follow the **Standalone: Testing & Validation (test)** procedures below to run t
    bash .claude/skills/agentbase/scripts/runtime.sh endpoints list $RUNTIME_ID
    ```
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" "<endpoint-url>/health"
+   TOKEN=$(bash .claude/skills/agentbase/scripts/get_token.sh)
+   curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "<endpoint-url>/health"
    ```
+   Runtimes are created with `IAM` inbound auth by default, so calls to the endpoint need an IAM bearer token (drop the header if the user chose `NONE`). A `401`/`403` means the token is missing or wrong, not that the agent is unhealthy.
 
    If health check fails (non-200) but runtime status is ACTIVE, the agent may have a startup issue — suggest checking logs via `/agentbase-monitor`.
 

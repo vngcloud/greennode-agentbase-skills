@@ -7,9 +7,8 @@ source "$SCRIPTS_DIR/lib/config.sh"
 source "$SCRIPTS_DIR/lib/common.sh"
 
 ACTION="${1:-help}"; shift 2>/dev/null || true
-ARGS=()
-while IFS= read -r line; do ARGS+=("$line"); done < <(parse_flags "$@")
-if [ ${#ARGS[@]} -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
+parse_flags "$@"
+set -- ${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"}
 
 can_use_poc() {
   local elig

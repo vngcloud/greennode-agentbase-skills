@@ -50,6 +50,7 @@ Present a summary with recommended values and ask the user to confirm or adjust:
 | **Args** | `[]` (use image default) | Override Docker CMD |
 | **Description** | `""` | Optional description |
 | **Network mode** | `PUBLIC` (omit `networkConfig`) | `PUBLIC` (server default) or `VPC`. See "Network Configuration" below |
+| **Inbound auth** | `IAM` | `IAM` (script default), `JWT`, or `NONE` (unauthenticated — only on explicit request). PUBLIC mode only. See "Inbound auth" below |
 
 **Step 3 - Environment variables file:**
 
@@ -98,6 +99,29 @@ Validation rules (enforced server-side; mirror these in the user-facing prompt b
 - The selected VPC's CIDR is also checked against the platform-disallowed (system) CIDR — if it overlaps, the user must pick a different VPC. Default system CIDR: `172.30.0.0/16` (overridable via `AGENTBASE_SYSTEM_CIDR`; will eventually be published on the platform docs).
 - Changing `networkConfig.mode` on an existing runtime via `update` causes endpoints to be recreated under the new mode.
 
+**Optional `inboundAuth` object** (Custom Agent only, **PUBLIC network mode only**):
+
+How the platform authenticates requests reaching the runtime's endpoints before they hit the container. The **server** treats an omitted `inboundAuth` as `NONE` (unauthenticated); **`runtime.sh create` therefore always sends `{"mode": "IAM"}` unless `--inbound-auth` says otherwise.**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mode` | string | yes | `IAM` — caller must send a VNG Cloud IAM bearer token belonging to the account that owns the endpoint. `JWT` — verify a bearer token from the user's own IdP (settings in `jwt`). `NONE` — every request passes. |
+| `jwt` | object | when `mode=JWT` | `source` (`DISCOVERY` or `JWKS`, required); `discoveryUrl` (https, ends with `/.well-known/openid-configuration` or `/.well-known/oauth-authorization-server`, required for DISCOVERY); `jwks` (RFC 7517 `{"keys": [...]}`, public keys only, ≤32 KiB / 10 keys, required for JWKS); optional `allowedAudiences` (≤20), `allowedClients` (≤20), `allowedScopes` (≤50), `principalClaim` (default `sub`, forwarded to the agent). |
+
+Script flags (`create` and `update`):
+- `--inbound-auth IAM|JWT|NONE` — `create` defaults to `IAM`. In VPC mode the script omits `inboundAuth`; an explicit `IAM`/`JWT` with `--network-mode VPC` is rejected.
+- `--inbound-auth-jwt-file <path>` — required with `JWT`; a JSON file containing the `jwt` object above, e.g.
+  ```json
+  {"source": "DISCOVERY", "discoveryUrl": "https://login.example.com/.well-known/openid-configuration", "allowedAudiences": ["my-agent"]}
+  ```
+- On `update`, omitting `--inbound-auth` **keeps the latest version's `inboundAuth`** (read from `versions`).
+
+Calling an `IAM`-protected endpoint:
+```bash
+TOKEN=$(bash .claude/skills/agentbase/scripts/get_token.sh)
+curl -X POST "<endpoint-url>/invocations" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"message": "hi"}'
+```
+
 ### Discovering `vpcId` and `subnetId` — vServer API
 
 Users rarely know their VPC/subnet UUIDs off the top of their heads. Use `vserver.sh` (wraps the vServer API at `https://hcm-3.api.vngcloud.vn/vserver/vserver-gateway`; switch region with `GREENNODE_REGION=han`) to list and validate them:
@@ -128,6 +152,7 @@ bash .claude/skills/agentbase/scripts/runtime.sh create \
   --name my-agent \
   --image "registry.example.com/my-agent:v1" \
   --flavor 1x1-general \
+  --inbound-auth IAM \
   --poc false
 ```
 
@@ -210,7 +235,9 @@ bash .claude/skills/agentbase/scripts/runtime.sh update $RUNTIME_ID \
   --flavor 1x1-general
 ```
 
-**Body fields** (same as create minus `name`): `description`, `imageUrl`, `imageAuth`, `command`, `args`, `environmentVariables`, `flavorId`, `autoscaling`, `networkConfig`. All fields except `imageAuth` and `networkConfig` are required.
+**Body fields** (same as create minus `name`): `description`, `imageUrl`, `imageAuth`, `command`, `args`, `environmentVariables`, `flavorId`, `autoscaling`, `networkConfig`, `inboundAuth`. All fields except `imageAuth`, `networkConfig` and `inboundAuth` are required.
+
+> **Inbound auth on update**: an omitted `inboundAuth` resets the new version to `NONE` server-side, so the script carries over the latest version's `inboundAuth` unless `--inbound-auth` is passed. Changing it (e.g. `NONE → IAM`) breaks callers that don't send a matching token — confirm with the user first.
 
 **Behavior**: Each update creates a new version. The `DEFAULT` endpoint automatically updates to the new version.
 
@@ -290,7 +317,7 @@ bash .claude/skills/agentbase/scripts/runtime.sh endpoints metrics $RUNTIME_ID $
 bash .claude/skills/agentbase/scripts/runtime.sh versions $RUNTIME_ID --page 1 --size 20
 ```
 
-**Version fields**: `agentRuntimeId`, `version`, `description`, `imageUrl`, `imageAuth` (with `enabled`, `username`, `encryptedPassword`), `command`, `args`, `environmentVariables`, `flavorId`, `autoscaling` (with `minReplicas`, `maxReplicas`, `cpuUtilization`, `memoryUtilization`), `networkConfig` (with `mode`, `vpcId`, `subnetId`, `routeCidrs` — `null` for legacy versions created before the field existed), `createdAt`.
+**Version fields**: `agentRuntimeId`, `version`, `description`, `imageUrl`, `imageAuth` (with `enabled`, `username`, `encryptedPassword`), `command`, `args`, `environmentVariables`, `flavorId`, `autoscaling` (with `minReplicas`, `maxReplicas`, `cpuUtilization`, `memoryUtilization`), `networkConfig` (with `mode`, `vpcId`, `subnetId`, `routeCidrs` — `null` for legacy versions created before the field existed), `inboundAuth` (with `mode`, and `jwt` when `mode=JWT`), `createdAt`.
 
 Display as a table: Version, Image, Flavor, Created.
 

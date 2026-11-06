@@ -466,10 +466,8 @@ main() {
   local action="$1"; shift
 
   # Parse common flags, get remaining args
-  local args=()
-  while IFS= read -r line; do
-    args+=("$line")
-  done < <(parse_flags "$@")
+  parse_flags "$@"
+  local args=(${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"})
 
   case "$provider_type" in
     apikey)

@@ -125,7 +125,7 @@ curl -sS -X POST "$BASE/gateways" \
 | `privateNetwork.routes[]` | optional, ≤50 entries, each a private IPv4 CIDR (RFC 1918). IPv6 and public ranges are rejected. |
 | `flavorId` | must come from `GET /flavors` and match the chosen `networkMode` + `zoneId`. |
 | `replicas` | integer 1–10. |
-| `inboundAuth` | see `inbound-auth.md`. |
+| `inboundAuth` | always send it on create — default `{ "mode": "IAM" }`. Omitted ⇒ server applies `NONE` (unauthenticated). See `inbound-auth.md`. |
 | `targets[]` | length ≤ `gateway.maxTargets` (operator-configured, default 50). Each target uses an `outboundAuth` block per `outbound-auth.md`. Target `name` is `^[a-z0-9-]+$`, length 3–50. Target `endpoint` must start with `https://` and be ≤1000 chars. |
 | `policyGroupId` | optional, ≤50, `[A-Za-z0-9_-]`. Must reference an existing Policy Group (see `/agentbase-policy`). |
 
