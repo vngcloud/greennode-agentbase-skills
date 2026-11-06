@@ -9,11 +9,13 @@ The `inboundAuth` block decides how the gateway authenticates the **caller** (ag
 }
 ```
 
+**Default: `IAM`.** Always send `inboundAuth` explicitly on create. If the field is omitted, the server falls back to `NONE` (unauthenticated), so never leave it out — when the user has no preference, send `{ "mode": "IAM" }`.
+
 PATCH replaces `inboundAuth` wholesale (Merge Patch does not deep-merge nested config). When switching modes, send the **full new block** — e.g. switching `JWT → IAM` means `{ "mode": "IAM" }` with `jwt` omitted.
 
 ---
 
-## Mode: `NONE`
+## Mode: `NONE` (opt-in only)
 
 ```json
 { "inboundAuth": { "mode": "NONE" } }
@@ -21,11 +23,11 @@ PATCH replaces `inboundAuth` wholesale (Merge Patch does not deep-merge nested c
 
 No authentication. **Any caller** that can reach the gateway endpoint can invoke targets. The bound Policy Group (if any) still runs, but `principal.*` JWT claims are unavailable, so policies relying on `principal.*` will never match.
 
-Reserve `NONE` for internal lab gateways or for cases where authentication is enforced one hop upstream (e.g. a private network with mutual TLS at the edge).
+Only use `NONE` when the user explicitly asks for it, and warn them before creating. Reserve it for internal lab gateways or for cases where authentication is enforced one hop upstream (e.g. a private network with mutual TLS at the edge).
 
 ---
 
-## Mode: `IAM`
+## Mode: `IAM` (default)
 
 ```json
 { "inboundAuth": { "mode": "IAM" } }
@@ -160,9 +162,10 @@ The Gateway service stores these rules opaquely and applies them at JWT validati
 
 | Scenario | Mode |
 |---|---|
+| No specific requirement (default) | `IAM` |
 | Agents deployed via `/agentbase-deploy` calling each other | `IAM` |
 | External SaaS or browser front-end hitting MCP | `JWT` (DISCOVERY) |
-| Air-gapped or internal-only proxy | `NONE` (with network-level isolation) |
+| Air-gapped or internal-only proxy, user explicitly opts out of auth | `NONE` (with network-level isolation) |
 | Mixed IAM + end-user JWT traffic | Pick one mode per gateway — run two gateways pointing at the same upstreams if you need both. |
 
 ## How `inboundAuth` interacts with policy
