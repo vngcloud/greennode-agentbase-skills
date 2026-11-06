@@ -117,6 +117,10 @@ The AgentBase SDK (`greennode-agentbase`) automatically reads these variables �
   bash .claude/skills/agentbase/scripts/vserver.sh subnets <projectId> <vpcId>
   ```
   Present each list to the user and let them pick. **Before submitting the runtime create**, you MUST run `bash .claude/skills/agentbase/scripts/vserver.sh validate-vpc <projectId> <vpcId>` — this single command verifies (1) vDNS is enabled on the VPC and (2) the VPC CIDR does not overlap the system CIDR (default `172.30.0.0/16`, override via `AGENTBASE_SYSTEM_CIDR`). If validate-vpc fails, surface the JSON report and ask the user to pick a different VPC; do not proceed. After IDs are confirmed, ask for `routeCidrs` last and offer "leave empty" as an option.
+- **Inbound auth** (PUBLIC mode only — skip this question for VPC, where `inboundAuth` is unsupported and the script omits it): how the platform authenticates requests hitting the runtime endpoint before they reach the container. Use AskUserQuestion:
+  1. **IAM** (default — recommended) — callers must send a VNG Cloud IAM bearer token of the account that owns the runtime (`Authorization: Bearer <token>`). This is what `runtime.sh create` sends when `--inbound-auth` is omitted.
+  2. **JWT** — verify bearer tokens from the user's own IdP (for browser / external callers). Requires a JWT settings JSON file passed via `--inbound-auth-jwt-file` (see `references/runtime-ops.md`).
+  3. **NONE** — unauthenticated; anyone who knows the URL can invoke the agent. Only if the user explicitly asks for it — warn them before proceeding.
 - **Compute flavor**: You MUST list available flavors using `bash .claude/skills/agentbase/scripts/runtime.sh flavors` and present them to the user so they can choose. Do NOT auto-select a flavor — always let the user pick. Filter the list based on the network mode chosen above:
   - **PUBLIC mode** — only flavors whose `supportedResourceTypes` includes `agent-runtime` are eligible. Suggest `1x1-general` (1 CPU, 1 GB RAM) as a starting point, but the user must confirm.
   - **VPC mode** — only flavors whose `supportedResourceTypes` includes `agent-runtime-vpc` are eligible. There is usually a separate `-vpc` variant per flavor; if none exist, inform the user that VPC mode is not yet available for their account and offer to fall back to PUBLIC.
@@ -220,10 +224,13 @@ bash .claude/skills/agentbase/scripts/runtime.sh create \
   [--from-cr | --registry-credentials-file PATH] \
   [--network-mode PUBLIC|VPC] \
   [--vpc-id <vpc-uuid> --subnet-id <subnet-uuid>] \
-  [--route-cidrs "CIDR1,CIDR2,..."]
+  [--route-cidrs "CIDR1,CIDR2,..."] \
+  [--inbound-auth IAM|JWT|NONE] [--inbound-auth-jwt-file <path>]
 ```
 
 For a private registry, pass `--from-cr` (AgentBase CR — no file) or `--registry-credentials-file <path>` (external registry). The script adds `imageAuth` to the payload automatically.
+
+**Inbound auth**: always pass the user's choice explicitly (e.g. `--inbound-auth IAM`) so it shows in the confirmation. If omitted, the script defaults to `IAM` in PUBLIC mode (the server's own default would be `NONE` = unauthenticated). In VPC mode the script omits `inboundAuth`; passing `IAM`/`JWT` together with `--network-mode VPC` is rejected.
 
 For VPC network mode, pass `--network-mode VPC` plus `--vpc-id` and `--subnet-id` (both required). `--route-cidrs` is optional and accepts a comma-separated list of private CIDRs. Omit all four flags to use the server-default `PUBLIC` mode.
 
@@ -240,10 +247,13 @@ bash .claude/skills/agentbase/scripts/runtime.sh update $RUNTIME_ID \
   [--from-cr | --registry-credentials-file PATH] \
   [--network-mode PUBLIC|VPC] \
   [--vpc-id <vpc-uuid> --subnet-id <subnet-uuid>] \
-  [--route-cidrs "CIDR1,CIDR2,..."]
+  [--route-cidrs "CIDR1,CIDR2,..."] \
+  [--inbound-auth IAM|JWT|NONE] [--inbound-auth-jwt-file <path>]
 ```
 
 For a private registry, pass `--from-cr` (AgentBase CR — no file) or `--registry-credentials-file <path>` (external registry).
+
+**Inbound auth on update**: without `--inbound-auth`, the script carries over the latest version's `inboundAuth` (an update is a full-body write, so omitting it would otherwise silently reset the endpoint to `NONE`). Only pass `--inbound-auth` when the user wants to change it — switching an existing runtime from `NONE` to `IAM` breaks callers that don't send a token, so warn first.
 
 **Network mode on update**: If the existing runtime uses VPC mode and the user is not explicitly changing it, **you MUST re-pass `--network-mode VPC --vpc-id ... --subnet-id ...`** (plus any prior `--route-cidrs`). Omitting `--network-mode` causes the server to default the new version back to PUBLIC, recreating endpoints and breaking VPC connectivity. Before running `update`, call `runtime.sh versions $RUNTIME_ID` and inspect the latest version's `networkConfig` so you can re-supply the same values. Switching between PUBLIC and VPC is allowed but triggers endpoint recreation — expect a brief outage.
 
@@ -280,10 +290,11 @@ Find the `DEFAULT` endpoint in the response and extract its `url` field.
 ### Step 7: Test Health
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" "<endpoint-url>/health"
+TOKEN=$(bash .claude/skills/agentbase/scripts/get_token.sh)
+curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "<endpoint-url>/health"
 ```
 
-Expect HTTP 200. If it fails, the container may still be starting -- retry a few times with short delays.
+Send the IAM token when the runtime uses `IAM` inbound auth (the default); drop the header for `NONE`, and use a token from the user's IdP for `JWT`. Expect HTTP 200. A `401`/`403` means the inbound auth rejected the call (missing/wrong token) — not a container problem. Other failures: the container may still be starting -- retry a few times with short delays.
 
 ### Step 8: Report Deployment Result
 
@@ -297,6 +308,7 @@ Deployment complete!
   Version:   <version-number>
   Status:    ACTIVE
   Endpoint:  <endpoint-url>
+  Inbound:   <IAM|JWT|NONE>
   Health:    OK (200)
 
 Console: https://aiplatform.console.vngcloud.vn/agent-runtime?tab=runtime

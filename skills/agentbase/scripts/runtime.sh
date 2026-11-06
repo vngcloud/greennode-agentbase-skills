@@ -11,9 +11,8 @@ FLAVORS_URL="$AGENTBASE_RUNTIME_URL/flavors"
 
 # --- Parse action + common flags ---
 ACTION="${1:-help}"; shift 2>/dev/null || true
-ARGS=()
-while IFS= read -r line; do ARGS+=("$line"); done < <(parse_flags "$@")
-if [ ${#ARGS[@]} -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
+parse_flags "$@"
+set -- ${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"}
 
 # --- Helpers ---
 
@@ -111,6 +110,79 @@ build_network_config() {
   echo "$body" | jq --argjson nc "$network_json" '. + {networkConfig: $nc}'
 }
 
+# Build the inboundAuth object for create/update.
+# Args: MODE JWT_FILE NETWORK_MODE EXPLICIT(true|false)
+# Prints the JSON object on stdout, or nothing when inboundAuth must be omitted.
+# - MODE defaults to IAM (secure by default) when not passed explicitly.
+# - inboundAuth is only supported in PUBLIC network mode: in VPC mode the
+#   default is dropped silently; an explicit IAM/JWT is rejected.
+# - JWT requires JWT_FILE: a JSON object with the `jwt` settings
+#   (source, discoveryUrl|jwks, allowedAudiences, ...).
+build_inbound_auth() {
+  local mode="$1" jwt_file="$2" network_mode="$3" explicit="$4"
+
+  mode=$(echo "${mode:-IAM}" | tr '[:lower:]' '[:upper:]')
+  case "$mode" in
+    NONE|IAM|JWT) ;;
+    *) echo "ERROR: --inbound-auth must be NONE, IAM or JWT (got: $mode)" >&2; return 1 ;;
+  esac
+
+  if [ -n "$jwt_file" ] && [ "$mode" != "JWT" ]; then
+    echo "ERROR: --inbound-auth-jwt-file is only valid with --inbound-auth JWT" >&2
+    return 1
+  fi
+
+  local nm_upper
+  nm_upper=$(echo "${network_mode:-}" | tr '[:lower:]' '[:upper:]')
+  if [ "$nm_upper" = "VPC" ]; then
+    if [ "$explicit" = true ] && [ "$mode" != "NONE" ]; then
+      echo "ERROR: --inbound-auth $mode is only supported in PUBLIC network mode (got --network-mode VPC)" >&2
+      return 1
+    fi
+    return 0
+  fi
+
+  if [ "$mode" = "JWT" ]; then
+    if [ -z "$jwt_file" ]; then
+      echo "ERROR: --inbound-auth JWT requires --inbound-auth-jwt-file PATH" >&2
+      return 1
+    fi
+    if [ ! -f "$jwt_file" ]; then
+      echo "ERROR: JWT settings file not found: $jwt_file" >&2
+      return 1
+    fi
+    if ! jq -e 'type == "object" and (.source == "DISCOVERY" or .source == "JWKS")' "$jwt_file" >/dev/null 2>&1; then
+      echo "ERROR: JWT settings file must be a JSON object with source DISCOVERY or JWKS" >&2
+      return 1
+    fi
+    jq -c '{mode: "JWT", jwt: .}' "$jwt_file"
+    return 0
+  fi
+
+  jq -nc --arg mode "$mode" '{mode: $mode}'
+}
+
+# Read the inboundAuth of the runtime's latest version, re-shaped as a request
+# object. Prints nothing when the latest version has no inboundAuth (legacy).
+# Returns non-zero when the versions cannot be read.
+current_inbound_auth() {
+  local id="$1" first last_page versions
+  first=$(REDACT_FIELDS="password" api_call GET "${BASE_URL}/${id}/versions?page=1&size=100" 2>/dev/null) || return 1
+  printf '%s' "$first" | jq -e '.listData' >/dev/null 2>&1 || return 1
+  versions=$(printf '%s' "$first" | jq -c '.listData')
+  last_page=$(printf '%s' "$first" | jq -r '.totalPage // 1')
+  if [ "$last_page" -gt 1 ] 2>/dev/null; then
+    local last
+    last=$(REDACT_FIELDS="password" api_call GET "${BASE_URL}/${id}/versions?page=${last_page}&size=100" 2>/dev/null) || return 1
+    versions=$(jq -nc --argjson a "$versions" --argjson b "$(printf '%s' "$last" | jq -c '.listData // []')" '$a + $b')
+  fi
+  printf '%s' "$versions" | jq -c '
+    (max_by(.version) // {}) | .inboundAuth
+    | if . == null or .mode == null then empty
+      elif .mode == "JWT" then {mode: "JWT", jwt: ((.jwt // {}) | with_entries(select(.value != null)))}
+      else {mode: .mode} end'
+}
+
 # --- Actions ---
 
 do_list() {
@@ -136,6 +208,7 @@ do_create() {
   local registry_credentials="" from_cr=false
   local network_mode="" vpc_id="" subnet_id="" route_cidrs=""
   local poc=""
+  local inbound_auth="" inbound_auth_jwt_file="" inbound_auth_explicit=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -155,6 +228,8 @@ do_create() {
       --subnet-id) subnet_id="$2"; shift 2 ;;
       --route-cidrs) route_cidrs="$2"; shift 2 ;;
       --poc) poc="$2"; shift 2 ;;
+      --inbound-auth) inbound_auth="$2"; inbound_auth_explicit=true; shift 2 ;;
+      --inbound-auth-jwt-file) inbound_auth_jwt_file="$2"; shift 2 ;;
       *) echo "ERROR: Unknown option for create: $1" >&2; return 1 ;;
     esac
   done
@@ -267,6 +342,14 @@ do_create() {
   # Handle optional networkConfig (PUBLIC by default; only emit when explicitly requested)
   body=$(build_network_config "$body" "$network_mode" "$vpc_id" "$subnet_id" "$route_cidrs") || return 1
 
+  # inboundAuth: defaults to IAM (the server would otherwise default to NONE =
+  # unauthenticated endpoints). Omitted in VPC mode, where it is unsupported.
+  local inbound_json
+  inbound_json=$(build_inbound_auth "$inbound_auth" "$inbound_auth_jwt_file" "$network_mode" "$inbound_auth_explicit") || return 1
+  if [ -n "$inbound_json" ]; then
+    body=$(echo "$body" | jq --argjson ia "$inbound_json" '. + {inboundAuth: $ia}')
+  fi
+
   REDACT_FIELDS="password" api_call POST "$BASE_URL" "$body"
 }
 
@@ -288,6 +371,7 @@ do_update() {
   local min_replicas="" max_replicas="" cpu_scale="" mem_scale=""
   local registry_credentials="" from_cr=false
   local network_mode="" vpc_id="" subnet_id="" route_cidrs=""
+  local inbound_auth="" inbound_auth_jwt_file="" inbound_auth_explicit=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -305,6 +389,8 @@ do_update() {
       --vpc-id) vpc_id="$2"; shift 2 ;;
       --subnet-id) subnet_id="$2"; shift 2 ;;
       --route-cidrs) route_cidrs="$2"; shift 2 ;;
+      --inbound-auth) inbound_auth="$2"; inbound_auth_explicit=true; shift 2 ;;
+      --inbound-auth-jwt-file) inbound_auth_jwt_file="$2"; shift 2 ;;
       *) echo "ERROR: Unknown option for update: $1" >&2; return 1 ;;
     esac
   done
@@ -398,6 +484,28 @@ do_update() {
 
   # Handle optional networkConfig (PUBLIC by default; only emit when explicitly requested)
   body=$(build_network_config "$body" "$network_mode" "$vpc_id" "$subnet_id" "$route_cidrs") || return 1
+
+  # inboundAuth: the update is a full-body write, so an omitted inboundAuth would
+  # silently reset the endpoints to NONE. Explicit --inbound-auth wins; otherwise
+  # carry over the latest version's inboundAuth (never flip an existing runtime).
+  local inbound_json=""
+  if [ "$inbound_auth_explicit" = true ] || [ -n "$inbound_auth_jwt_file" ]; then
+    inbound_json=$(build_inbound_auth "$inbound_auth" "$inbound_auth_jwt_file" "$network_mode" "$inbound_auth_explicit") || return 1
+  elif [ "$DRY_RUN" = true ]; then
+    echo "NOTE: dry-run — inboundAuth would be carried over from the latest version (not fetched in dry-run)." >&2
+  else
+    if ! inbound_json=$(current_inbound_auth "$id"); then
+      echo "ERROR: Could not read the latest version's inboundAuth to preserve it. Pass --inbound-auth explicitly or retry." >&2
+      return 1
+    fi
+    if [ -n "$inbound_json" ] && [ "$(echo "${network_mode:-}" | tr '[:lower:]' '[:upper:]')" = "VPC" ]; then
+      echo "NOTE: switching to VPC mode — inboundAuth is unsupported there and will be dropped." >&2
+      inbound_json=""
+    fi
+  fi
+  if [ -n "$inbound_json" ]; then
+    body=$(echo "$body" | jq --argjson ia "$inbound_json" '. + {inboundAuth: $ia}')
+  fi
 
   REDACT_FIELDS="password" api_call PATCH "${BASE_URL}/${id}" "$body"
 }
@@ -710,10 +818,13 @@ do_help() {
          [--network-mode PUBLIC|VPC] [--vpc-id ID] [--subnet-id ID]
          [--route-cidrs CIDR1,CIDR2,...]
          [--poc true|false]
+         [--inbound-auth NONE|IAM|JWT] [--inbound-auth-jwt-file PATH]
                                                            Create a new Custom Agent runtime
                                                            (--from-cr pulls AgentBase CR credentials inline; no file needed)
                                                            (--network-mode VPC requires --vpc-id and --subnet-id;
                                                             flavor must support agent-runtime-vpc resource type)
+                                                           (--inbound-auth defaults to IAM; PUBLIC mode only —
+                                                            omitted in VPC mode. JWT needs --inbound-auth-jwt-file)
   get    ID                                                Get runtime by ID
   update ID --image URL --flavor ID [--description DESC]
          [--env-file PATH] [--min-replicas N] [--max-replicas N]
@@ -721,9 +832,11 @@ do_help() {
          [--from-cr | --registry-credentials-file PATH]
          [--network-mode PUBLIC|VPC] [--vpc-id ID] [--subnet-id ID]
          [--route-cidrs CIDR1,CIDR2,...]
+         [--inbound-auth NONE|IAM|JWT] [--inbound-auth-jwt-file PATH]
                                                            Update a Custom Agent runtime
                                                            (--from-cr pulls AgentBase CR credentials inline; no file needed)
                                                            (changing network-mode triggers endpoint recreation)
+                                                           (without --inbound-auth, the latest version's inboundAuth is kept)
   delete ID                                                Delete a runtime
   reset-service-account ID                                 Reset service account
   logs   ID [--from N] [--limit N] [--query TEXT]
