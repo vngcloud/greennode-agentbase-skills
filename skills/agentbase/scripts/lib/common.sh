@@ -75,23 +75,22 @@ runtime_can_use_poc() {
 }
 
 # --- Parse common flags from argument list ---
-# Usage: ARGS=($(parse_flags "$@"))
-# Sets VERBOSE, DRY_RUN, OUTPUT_FORMAT, REDACT_FIELDS as side effects.
-# Returns remaining args via stdout (one per line).
+# Usage: parse_flags "$@"; set -- ${PARSED_ARGS[@]+"${PARSED_ARGS[@]}"}
+# Sets VERBOSE, DRY_RUN, OUTPUT_FORMAT, REDACT_FIELDS as side effects and puts
+# the remaining args in the global array PARSED_ARGS.
+# Must be called in the CURRENT shell (not via $(...) or <(...)): a subshell
+# would drop the side effects — e.g. --dry-run would silently send real requests.
 parse_flags() {
-  local remaining=()
+  PARSED_ARGS=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --verbose|-v) VERBOSE=true; shift ;;
       --dry-run) DRY_RUN=true; shift ;;
       --output) OUTPUT_FORMAT="$2"; shift 2 ;;
       --redact) REDACT_FIELDS="$2"; shift 2 ;;
-      *) remaining+=("$1"); shift ;;
+      *) PARSED_ARGS+=("$1"); shift ;;
     esac
   done
-  if [ ${#remaining[@]} -gt 0 ]; then
-    printf '%s\n' "${remaining[@]}"
-  fi
 }
 
 # --- Core API call ---
